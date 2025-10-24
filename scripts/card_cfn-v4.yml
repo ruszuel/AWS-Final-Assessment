@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Final CFN Assessment"
+
+Parameters: 
+  lambdaS3Bucket:
+    Description: "S3 Bucket of Lambda Function"
+    Type: String
+    Default: "jlrt-cfn-card-scripts"
+  restApiName:
+    Description: "Name of the REST API"
+    Type: String
+    Default: "card-rest-api"
+
+  # Card Register 
+  registerFunctionName:
+    Description: "Card Register Lambda Function Name"
+    Type: String
+    Default: fnRegisterCard
+  registerLambdaZipFile:
+    Description: "Lambda Zip File in the bucket's lambda/ folder"
+    Type: String
+    Default: "fn_register_card_cfn-v0.zip" 
+  registerLambdaHandler:
+    Description: "Lambda Handler Function Name"
+    Type: String
+    Default: "fn_register_card_cfn.handler"
+
+  # Card Update Status 
+  statusFunctionName:
+    Description: "Card Update Status Lambda Function Name"
+    Type: String
+    Default: fnUpdateCardStatus
+  statusLambdaZipFile:
+    Description: "Lambda Zip File in the bucket's lambda/ folder"
+    Type: String
+    Default: "fn_update_card_status_cfn-v0.zip" 
+  statusLambdaHandler:
+    Description: "Lambda Handler Function Name"
+    Type: String
+    Default: "fn_update_card_status_cfn.handler"
+  
+  # Card Transaction 
+  transactionFunctionName:
+    Description: "Card Transaction Lambda Function Name"
+    Type: String
+    Default: fnCardTransaction
+  transactionLambdaZipFile:
+    Description: "Lambda Zip File in the bucket's lambda/ folder"
+    Type: String
+    Default: "fn_card_transaction_cfn-v0.zip" 
+  transactionLambdaHandler:
+    Description: "Lambda Handler Function Name"
+    Type: String
+    Default: "fn_card_transaction_cfn.handler"
+
+  # Card Transaction Process 
+  transactionProcessFunctionName:
+    Description: "Card Transaction Process Lambda Function Name"
+    Type: String
+    Default: fnCardtransaction_process
+  transactionProcessLambdaZipFile:
+    Description: "Lambda Zip File in the bucket's lambda/ folder"
+    Type: String
+    Default: "fn_card_transaction_process_cfn-v0.zip" 
+  transactionProcessLambdaHandler:
+    Description: "Lambda Handler Function Name"
+    Type: String
+    Default: "fn_card_transaction_process_cfn.handler"
+  
+  # Card List
+  listFunctionName:
+    Description: "Card List Lambda Function Name"
+    Type: String
+    Default: fnCardList
+  listLambdaZipFile:
+    Description: "Lambda Zip File in the bucket's lambda/ folder"
+    Type: String
+    Default: "fn_card_list_cfn-v0.zip" 
+  listLambdaHandler:
+    Description: "Lambda Handler Function Name"
+    Type: String
+    Default: "fn_card_list_cfn.handler"
+  
+  # Templates URL
+  templateLambdaStackURL:
+    Description: "Template URL"
+    Type: String
+    Default: "https://jlrt-cfn-card-scripts.s3.us-east-1.amazonaws.com/template/lambdaFunctionTemplate-v0.yml"
+  templateApiStackURL:
+    Description: "Template URL"
+    Type: String
+    Default: "https://jlrt-cfn-card-scripts.s3.us-east-1.amazonaws.com/template/apiResourceTemplate-v0.yml"
+  
+  # Route Condition
+  routeCondtion:
+    Description: "Rest API Enable Condition"
+    Type: String
+    Default: "ENABLE"
+    AllowedValues:
+      - "ENABLE"
+      - "DISABLE"
+
+Conditions:
+  isEnable: !Equals [!Ref routeCondtion, "ENABLE"]
+
+Resources: 
+  restApi:  # must also have condition: isEnable
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: "REST API for Card Application"
+      Name: !Ref restApiName
+  
+  # Card Function Stack
+  registerLambdaFunctionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref templateLambdaStackURL
+      Parameters:
+        functionName: !Ref registerFunctionName
+        S3Bucket: !Ref lambdaS3Bucket
+        lambdaZipFile: !Ref registerLambdaZipFile
+        functionDescription: "Card Register Lambda Function"
+        functionHandler: !Ref registerLambdaHandler
+
+  statusLambdaFunctionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref templateLambdaStackURL
+      Parameters:
+        functionName: !Ref statusFunctionName
+        S3Bucket: !Ref lambdaS3Bucket
+        lambdaZipFile: !Ref statusLambdaZipFile
+        functionDescription: "Card Status Lambda Function"
+        functionHandler: !Ref statusLambdaHandler
+
+  transactionLambdaFunctionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref templateLambdaStackURL
+      Parameters:
+        functionName: !Ref transactionFunctionName
+        S3Bucket: !Ref lambdaS3Bucket
+        lambdaZipFile: !Ref transactionLambdaZipFile
+        functionDescription: "Card Transaction Lambda Function"
+        functionHandler: !Ref transactionLambdaHandler
+
+  transactionProcessLambdaFunctionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref templateLambdaStackURL
+      Parameters:
+        functionName: !Ref transactionProcessFunctionName
+        S3Bucket: !Ref lambdaS3Bucket
+        lambdaZipFile: !Ref transactionProcessLambdaZipFile
+        functionDescription: "Card transactionProcess Lambda Function"
+        functionHandler: !Ref transactionProcessLambdaHandler
+
+  listLambdaFunctionStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref templateLambdaStackURL
+      Parameters:
+        functionName: !Ref listFunctionName
+        S3Bucket: !Ref lambdaS3Bucket
+        lambdaZipFile: !Ref listLambdaZipFile
+        functionDescription: "Card List Lambda Function"
+        functionHandler: !Ref listLambdaHandler
+
+  #API Resource Stack
+  registerApiResourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: registerLambdaFunctionStack
+    Condition: isEnable
+    Properties:
+      TemplateURL: !Ref templateApiStackURL
+      Parameters:
+        restApiResourceId: !GetAtt restApi.RootResourceId
+        templateRestApi: !Ref restApi
+        apiRoutes: register
+        routeHttpMethod: "POST"
+        lambdaFunctionArn: !GetAtt registerLambdaFunctionStack.Outputs.functionArn
+
+  statusApiResourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: statusLambdaFunctionStack
+    Condition: isEnable
+    Properties:
+      TemplateURL: !Ref templateApiStackURL
+      Parameters:
+        restApiResourceId: !GetAtt restApi.RootResourceId
+        templateRestApi: !Ref restApi
+        apiRoutes: update-status
+        routeHttpMethod: "POST"
+        lambdaFunctionArn: !GetAtt statusLambdaFunctionStack.Outputs.functionArn
+  
+  transactionApiResourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: transactionLambdaFunctionStack
+    Condition: isEnable
+    Properties:
+      TemplateURL: !Ref templateApiStackURL
+      Parameters:
+        restApiResourceId: !GetAtt restApi.RootResourceId
+        templateRestApi: !Ref restApi
+        apiRoutes: transaction
+        routeHttpMethod: "POST"
+        lambdaFunctionArn: !GetAtt transactionLambdaFunctionStack.Outputs.functionArn
+  
+  transactionProcessApiResourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: transactionProcessLambdaFunctionStack
+    Condition: isEnable
+    Properties:
+      TemplateURL: !Ref templateApiStackURL
+      Parameters:
+        restApiResourceId: !GetAtt restApi.RootResourceId
+        templateRestApi: !Ref restApi
+        apiRoutes: transaction-process
+        routeHttpMethod: "POST"
+        lambdaFunctionArn: !GetAtt transactionProcessLambdaFunctionStack.Outputs.functionArn
+
+  listApiResourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: listLambdaFunctionStack
+    Condition: isEnable
+    Properties:
+      TemplateURL: !Ref templateApiStackURL
+      Parameters:
+        restApiResourceId: !GetAtt restApi.RootResourceId
+        templateRestApi: !Ref restApi
+        apiRoutes: list
+        routeHttpMethod: "GET"
+        lambdaFunctionArn: !GetAtt listLambdaFunctionStack.Outputs.functionArn
+
+  # REST API Stage & Deployment
+  restApiStage:
+    Type: AWS::ApiGateway::Stage
+    Condition: isEnable
+    Properties:
+      DeploymentId: !Ref restApiStageDeployment
+      Description: "Deployment Stage for Card API"
+      MethodSettings: 
+        - HttpMethod: "*"
+          ResourcePath: "/*"
+      RestApiId: !Ref restApi
+      StageName: "dev"
+
+  restApiStageDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Condition: isEnable
+    Properties:
+      RestApiId: !Ref restApi
+    DependsOn:
+      - registerApiResourceStack
+      - statusApiResourceStack
+      - transactionApiResourceStack
+      - transactionProcessApiResourceStack
+      - listApiResourceStack
+ 
+  # DynamoDB 
+  cardDatabaseTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+        - AttributeName: "card_no"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "card_no"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableClass: "STANDARD"
+      TableName: "card_accounts_transactions_cfn"
+
+  cardDatabaseTablePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "card_account_read_write_cfn"
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "dynamodb:PutItem"
+              - "dynamodb:UpdateItem"
+              - "dynamodb:Scan"
+              - "dynamodb:GetItem"
+            Resource: !GetAtt cardDatabaseTable.Arn 
+      Roles:
+        - !GetAtt registerLambdaFunctionStack.Outputs.IAMRole
+        - !GetAtt statusLambdaFunctionStack.Outputs.IAMRole
+        - !GetAtt transactionLambdaFunctionStack.Outputs.IAMRole
+        - !GetAtt transactionProcessLambdaFunctionStack.Outputs.IAMRole
+        - !GetAtt listLambdaFunctionStack.Outputs.IAMRole

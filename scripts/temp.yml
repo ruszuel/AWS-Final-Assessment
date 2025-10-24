@@ -1,0 +1,11 @@
+listApiResourceStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: listLambdaFunctionStack
+    Properties:
+      TemplateURL: !Ref templateApiStackURL
+      Parameters:
+        restApiResourceId: !GetAtt restApi.RootResourceId
+        templateRestApi: !Ref restApi
+        apiRoutes: list
+        routeHttpMethod: "GET"
+        lambdaFunctionArn: !GetAtt listLambdaFunctionStack.Outputs.functionArn

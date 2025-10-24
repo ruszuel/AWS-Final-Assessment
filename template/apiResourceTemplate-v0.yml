@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "API Functions with Permission and Method"
+
+Parameters:
+  restApiResourceId:
+    Description: "Resource ID of the Rest API"
+    Type: String
+  templateRestApi:
+    Description: "REST API"
+    Type: String
+  apiRoutes:
+    Description: "API endpoints of the API"
+    Type: String
+  routeHttpMethod:
+    Description: "HTTP Method for the API Route"
+    Type: String
+    AllowedValues:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "PATCH"
+      - "DELETE"
+  lambdaFunctionArn:
+    Description: "Lambda Function Arn"
+    Type: String
+
+Resources: 
+  apiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !Ref restApiResourceId #!GetAtt restApi.RootResourceId
+      PathPart: !Ref apiRoutes
+      RestApiId: !Ref templateRestApi #Rest Api
+
+  restMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: "NONE"
+      HttpMethod: !Ref routeHttpMethod
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Join [ "", [ "arn:aws:apigateway:", !Ref "AWS::Region", ":lambda:path/2015-03-31/functions/", !Ref lambdaFunctionArn, "/invocations"] ] #!GetAtt listLambdaFunction.Outputs.functionArn
+      ResourceId: !Ref apiResource
+      RestApiId: !Ref templateRestApi
+
+  apiLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: "lambda:invokeFunction"
+      FunctionName: !Ref lambdaFunctionArn
+      Principal: "apigateway.amazonaws.com" 
+      SourceArn: !Join [ "", [ "arn:aws:execute-api:", !Ref "AWS::Region", ":",!Ref "AWS::AccountId", ":", !Ref templateRestApi, "/*" ] ]
