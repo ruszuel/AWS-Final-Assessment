@@ -104,8 +104,9 @@ Conditions:
   isEnable: !Equals [!Ref routeCondtion, "ENABLE"]
 
 Resources: 
-  restApi:  # must also have condition: isEnable
+  restApi:
     Type: AWS::ApiGateway::RestApi
+    Condition: isEnable
     Properties:
       Description: "REST API for Card Application"
       Name: !Ref restApiName
